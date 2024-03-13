@@ -1,0 +1,141 @@
+﻿Program.Sub.ScreenSU.Start
+Gui.fbox..Create
+Gui.fbox..Caption("Operator Notes")
+Gui.fbox..Size(9045,5130)
+Gui.fbox..MinX(0)
+Gui.fbox..MinY(0)
+Gui.fbox..Position(0,0)
+Gui.fbox..BackColor(-2147483633)
+Gui.fbox..MousePointer(0)
+Gui.fbox..Event(UnLoad,fbox_unload)
+Gui.fbox.txtbox.Create(TextBoxR)
+Gui.fbox.txtbox.Size(8175,2805)
+Gui.fbox.txtbox.Position(345,1350)
+Gui.fbox.txtoperator.Create(TextBox,"",True,2925,300,0,1380,345,False,0,"Arial",8,-2147483643,1)
+Gui.fbox.txtoperator.Locked(True)
+Gui.fbox.lbl1.Create(Label,"Operator",True,1065,255,0,300,405,True,0,"Arial",8,-2147483633,0)
+Gui.fbox.txtWO.Create(TextBox,"",True,2910,300,0,1380,750,False,0,"Arial",8,-2147483643,1)
+Gui.fbox.txtWO.Locked(True)
+Gui.fbox.lbl2.Create(Label,"WO",True,795,255,0,315,825,True,0,"Arial",8,-2147483633,0)
+Gui.fbox.cmdcopy.Create(Button)
+Gui.fbox.cmdcopy.Size(1620,510)
+Gui.fbox.cmdcopy.Position(6900,765)
+Gui.fbox.cmdcopy.Caption("COPY")
+Gui.fbox.cmdcopy.BackColor(-2147483644)
+Gui.fbox.cmdcopy.Event(Click,Copy)
+Gui.fbox.txtqualitynbr.Create(TextBox,"",True,2550,300,0,5955,330,False,0,"Arial",8,-2147483643,1)
+Gui.fbox.txtqualitynbr.Locked(True)
+Gui.fbox.lbl3.Create(Label,"Quality Nbr",True,1320,255,0,4545,405,True,0,"Arial",8,-2147483633,0)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Quality System > File > Quality Reject/Disposition
+'hooks 28901(populate) and 28905 (script1)
+'this pulls in operator notes from SFDC/GUI scrap reporting
+F.Intrinsic.Control.SetErrorHandler("fbox_unload_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+f.Intrinsic.Control.If(v.Caller.Hook,=,28901)
+	v.Passed.000168.Set("Operator Notes")
+f.Intrinsic.Control.End
+f.Intrinsic.Control.EndIf
+
+'show screen
+
+V.Local.sJob.Declare(String)
+v.Local.sSuff.Declare(String)
+v.Local.sSeq.Declare(String)
+V.Local.sSql.Declare(String)
+v.Local.sNotes.Declare(String)
+v.Local.sOperator.Declare(String)
+v.Local.sWO.Declare(String)
+v.Local.sEmployee.Declare(String)
+V.Local.sDate.Declare(String)
+v.Local.syear.Declare(String)
+v.Local.smonth.Declare(String)
+v.Local.sday.Declare(String)
+V.Local.sQualitynbr.Declare(String)
+
+v.Local.sJob.Set(v.Passed.000022)
+v.Local.sSuff.Set(v.Passed.000037)
+v.Local.sSeq.Set(v.Passed.000051)
+v.Local.sEmployee.Set(v.Passed.000108)
+v.Local.sQualitynbr.Set(v.Passed.000002)
+v.Local.sDate.Set(v.Passed.000011)
+f.Intrinsic.String.Left(v.Local.sdate,2,v.Local.smonth)
+f.Intrinsic.String.Mid(v.Local.sDate,3,2,v.Local.sday)
+f.Intrinsic.String.Mid(v.Local.sDate,5,2,v.Local.syear)
+f.Intrinsic.String.Concat(v.Local.syear,v.Local.smonth,v.Local.sday,v.Local.sDate)
+
+f.Intrinsic.String.LPad(v.Local.sSeq,"0",6,v.Local.sseq)
+v.Local.sOperator.Set(v.Passed.000029)
+
+f.Intrinsic.String.LPad(v.Local.sQualitynbr,"0",7,v.Local.sQualitynbr)
+
+'F.Intrinsic.String.Build("select N.JOB,N.SUFFIX,N.JOB_SEQ,N.TEXT,D.EMPLOYEE FROM v_JOB_DTL_NOTES N,V_JOB_DETAIL D where N.JOB=D.JOB AND N.SUFFIX=D.SUFFIX AND D.SEQUENCE_KEY=N.SEQ AND N.JOB_SEQ=D.SEQ AND N.JOB='{0}' AND N.SUFFIX='{1}' AND N.JOB_SEQ='{2}' AND D.EMPL='{3}' AND D.QUALITY_NUMBER='{4}';",v.Local.sJob,v.Local.sSuff,v.Local.sSeq,V.Local.sEmployee,v.Local.sQualitynbr,v.Local.sSql)
+F.Intrinsic.String.Build("select N.JOB,N.SUFFIX,N.JOB_SEQ,N.TEXT,D.EMPLOYEE FROM v_JOB_DTL_NOTES N,V_JOB_DETAIL D where N.JOB=D.JOB AND N.SUFFIX=D.SUFFIX AND N.JOB_SEQ=D.SEQ AND N.JOB='{0}' AND N.SUFFIX='{1}' AND N.JOB_SEQ='{2}' AND D.QUALITY_NUMBER='{4}';",v.Local.sJob,v.Local.sSuff,v.Local.sSeq,V.Local.sEmployee,v.Local.sQualitynbr,v.Local.sSql)
+f.odbc.connection!conx.opencompanyconnection
+Function.ODBC.Connection!conx.OpenRecordsetRO("rstJobnotes",V.Local.sSql)
+F.Intrinsic.Control.dountil(V.ODBC.conx!rstJobnotes.EOF,=,True)	
+	F.Intrinsic.String.Concat(v.Local.sNotes,V.ODBC.conx!rstJobnotes.FieldValTrim!TEXT," ",v.Local.sNotes)		
+F.ODBC.conx!rstJobnotes.MoveNext
+Function.Intrinsic.Control.Loop
+F.ODBC.Conx!rstJobnotes.Close
+F.ODBC.Connection!conx.Close
+
+GUI.fbox.txtoperator.Text(v.Local.sOperator)
+f.Intrinsic.String.Concat(v.Local.sJob,"-",v.Local.sSuff,v.Local.sWO)
+gui.fbox.txtWO.Text(v.Local.sWO)
+gui.fbox.txtbox.text(v.Local.sNotes)
+gui.fbox.txtqualitynbr.Text(v.Local.sQualitynbr)
+
+gui.fbox..Show
+
+F.Intrinsic.Control.Label("fbox_unload_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GAB_QUALITYDISP_OPERATORNOTES.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.Main.End
+
+Program.Sub.fbox_unload.Start
+F.Intrinsic.Control.SetErrorHandler("fbox_unload_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("fbox_unload_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GAB_QUALITYDISP_OPERATORNOTES.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.fbox_unload.End
+
+Program.Sub.Copy.Start
+v.Local.sCopy.Declare(String)
+v.Local.sCopy.Set(v.Screen.fbox!txtbox.Caption)
+f.Intrinsic.Control.If(v.Local.sCopy,<>,"")
+	F.Intrinsic.UI.SetClipboardText(v.Local.sCopy)
+f.Intrinsic.Control.Else
+f.Intrinsic.Control.EndIf
+Program.Sub.Copy.End
+
+Program.Sub.Comments.Start
+${$5$}$20.1.8784.19863$}$0
+${$6$}$bstevens$}$20240212133611908$}$3Pg7+K2MGztoXyjxMVZqWaM5g3GOUsSNufBpXkESEJRDR7k6PLMr4mCgnmXHDqUa5lOAXEHxWP6yxXMOqrhy4g==
+Program.Sub.Comments.End
